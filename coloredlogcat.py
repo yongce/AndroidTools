@@ -20,6 +20,23 @@
 # written by jeff sharkey, http://jsharkey.org/
 # piping detection and popen() added by other android team members
 
+# Modified by Yongce Tu <yongce.tu at gmail.com>
+# 1. Add line number
+# 2. Support logcat filter args
+# 3. Support logcat -v time
+#
+# Usage:
+#     coloredlogcat [<-d|-e>] [logcat filters]
+#     adb [-d|-e] logcat [-v brief|time] | coloredlogcat
+#
+# Examples:
+# $ coloredlogcat
+# $ coloredlogcat -d
+# $ coloredlogcat -e ActivityManager:* *:E
+# $ coloredlogcat ActivityManager:* *:E
+# $ adb -d logcat -v time | coloredlogcat
+# $ adb logcat ActivityManager:* *:S | coloredlogcat
+#
 
 import os, sys, re, StringIO
 import fcntl, termios, struct
@@ -85,6 +102,7 @@ NUMBER_WIDTH = 6
 TAGTYPE_WIDTH = 3
 TAG_WIDTH = 25
 PROCESS_WIDTH = 8 # 8 or -1
+TIME_WIDTH = 21
 HEADER_SIZE =  1 + NUMBER_WIDTH + TAGTYPE_WIDTH + 1 + TAG_WIDTH + 1 + PROCESS_WIDTH + 1
 
 TAGTYPES = {
@@ -95,14 +113,31 @@ TAGTYPES = {
     "E": "%s%s%s " % (format(fg=BLACK, bg=RED), "E".center(TAGTYPE_WIDTH), format(reset=True)),
 }
 
-retag = re.compile("^([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
+# regular expression for logs
+retagDefault = re.compile("^([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
+retagTime = re.compile("^([\-:\. 0-9]+) ([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
 
-# to pick up -d or -e
-adb_args = ' '.join(sys.argv[1:])
+# indicate whether the time is outputted
+timeOutputted = False
+
+# to pick up adb arg "-d" or "-d" and pick up logcat filters 
+adb_args = ""
+logcat_args = ""
+if len(sys.argv) > 1:
+    if sys.argv[1] == "-d" or sys.argv[1] == "-e":
+        adb_args = sys.argv[1]
+        logcat_args = ' '.join(sys.argv[2:])
+    else:
+        logcat_args = ' '.join(sys.argv[1:])
 
 # if someone is piping in to us, use stdin as input.  if not, invoke adb logcat
 if os.isatty(sys.stdin.fileno()):
-    input = os.popen("adb %s logcat" % adb_args)
+    timeOutputted = True   # Change it to False to disable time format
+    formatStr = "brief"
+    if timeOutputted:
+        formatStr = "time"
+    input = os.popen("adb %s logcat -v %s %s" % (adb_args, formatStr, logcat_args))
+    print "adb %s logcat -v %s %s" % (adb_args, formatStr, logcat_args)
 else:
     input = sys.stdin
 
@@ -114,12 +149,25 @@ while True:
     except KeyboardInterrupt:
         break
 
-    match = retag.match(line)
+    if (timeOutputted):
+        match = retagTime.match(line)
+    else:
+        match = retagDefault.match(line)
+        if match is None:
+            # logs from pipe have time info
+            match = retagTime.match(line)
+            if not match is None:
+                timeOutputted = True
+
     if not match is None:
-        tagtype, tag, owner, message = match.groups()
+        if (timeOutputted):
+            time, tagtype, tag, owner, message = match.groups()
+        else:
+            tagtype, tag, owner, message = match.groups()
+
         linebuf = StringIO.StringIO()
 
-        
+        # line number
         linebuf.write(" " + str(linenumber).ljust(NUMBER_WIDTH))
         linenumber += 1
 
@@ -138,8 +186,15 @@ while True:
         if not tagtype in TAGTYPES: break
         linebuf.write(TAGTYPES[tagtype])
 
+        # time
+        if timeOutputted:
+            linebuf.write(str("[" + time + "] ").ljust(TIME_WIDTH))
+
         # insert line wrapping as needed
-        message = indent_wrap(message, HEADER_SIZE, WIDTH)
+        headerSize = HEADER_SIZE
+        if timeOutputted:
+            headerSize += TIME_WIDTH
+        message = indent_wrap(message, headerSize, WIDTH)
 
         # format tag message using rules
         for matcher in RULES:
