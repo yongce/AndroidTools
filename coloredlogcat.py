@@ -81,10 +81,11 @@ RULES = {
     #re.compile(r"([\w\.@]+)=([\w\.@]+)"): r"%s\1%s=%s\2%s" % (format(fg=BLUE), format(fg=GREEN), format(fg=BLUE), format(reset=True)),
 }
 
+NUMBER_WIDTH = 6
 TAGTYPE_WIDTH = 3
-TAG_WIDTH = 20
+TAG_WIDTH = 25
 PROCESS_WIDTH = 8 # 8 or -1
-HEADER_SIZE = TAGTYPE_WIDTH + 1 + TAG_WIDTH + 1 + PROCESS_WIDTH + 1
+HEADER_SIZE =  1 + NUMBER_WIDTH + TAGTYPE_WIDTH + 1 + TAG_WIDTH + 1 + PROCESS_WIDTH + 1
 
 TAGTYPES = {
     "V": "%s%s%s " % (format(fg=WHITE, bg=BLACK), "V".center(TAGTYPE_WIDTH), format(reset=True)),
@@ -105,6 +106,8 @@ if os.isatty(sys.stdin.fileno()):
 else:
     input = sys.stdin
 
+linenumber = 1
+
 while True:
     try:
         line = input.readline()
@@ -115,6 +118,10 @@ while True:
     if not match is None:
         tagtype, tag, owner, message = match.groups()
         linebuf = StringIO.StringIO()
+
+        
+        linebuf.write(" " + str(linenumber).ljust(NUMBER_WIDTH))
+        linenumber += 1
 
         # center process info
         if PROCESS_WIDTH > 0:
