@@ -137,7 +137,7 @@ if os.isatty(sys.stdin.fileno()):
     if timeOutputted:
         formatStr = "time"
     input = os.popen("adb %s logcat -v %s %s" % (adb_args, formatStr, logcat_args))
-    print "adb %s logcat -v %s %s" % (adb_args, formatStr, logcat_args)
+    #print "adb %s logcat -v %s %s" % (adb_args, formatStr, logcat_args) # for debug
 else:
     input = sys.stdin
 
