@@ -26,20 +26,26 @@
 # 3. Support logcat -v time
 #
 # Usage:
-#     coloredlogcat [<-d|-e>] [logcat filters]
-#     adb [-d|-e] logcat [-v brief|time] | coloredlogcat
+#     coloredlogcat [-d|-e] [-t] [<log filters>]
+#     adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat
+#
+# Options:
+#      -d  Means "adb -d"
+#      -e  Means "adb -e"
+#      -t  Means "adb -v time"
 #
 # Examples:
 # $ coloredlogcat
-# $ coloredlogcat -d
+# $ coloredlogcat -d -t
 # $ coloredlogcat -e ActivityManager:* *:E
-# $ coloredlogcat ActivityManager:* *:E
+# $ coloredlogcat ActivityManager:* *:E -t
 # $ adb -d logcat -v time | coloredlogcat
 # $ adb logcat ActivityManager:* *:S | coloredlogcat
 #
 
 import os, sys, re, StringIO
 import fcntl, termios, struct
+import getopt
 
 # unpack the current terminal width/height
 data = fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, '1234')
@@ -120,24 +126,46 @@ retagTime = re.compile("^([\-:\. 0-9]+) ([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
 # indicate whether the time is outputted
 timeOutputted = False
 
-# to pick up adb arg "-d" or "-d" and pick up logcat filters 
+def showUsage():
+    print "Usage: coloredlogcat [-d|-e] [-t] [<log filters>]"
+    print "       adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat"
+    sys.exit(1)
+
+try:
+    opts,  filtersArgs = getopt.gnu_getopt(sys.argv[1:],  "det",)
+except getopt.GetoptError, err:
+    print "Error: " + str(err)
+    showUsage()
+
+adb_group = 0
 adb_args = ""
-logcat_args = ""
-if len(sys.argv) > 1:
-    if sys.argv[1] == "-d" or sys.argv[1] == "-e":
-        adb_args = sys.argv[1]
-        logcat_args = ' '.join(sys.argv[2:])
+
+for optName,  optArg in opts:
+    if optName == "-t":
+        timeOutputted = True
+    elif optName == "-d":
+        adb_args = "-d"
+        adb_group += 1
+    elif optName == "-e":
+        adb_args = "-e"
+        adb_group += 1
     else:
-        logcat_args = ' '.join(sys.argv[1:])
+        assert False,  "Unhandled option: " + optName
+
+if adb_group > 1:
+    print "Error: Cannot specify \"-d\" and \"-e\" at the same time."
+    showUsage()
+
+logcat_args = ' '.join(filtersArgs)
 
 # if someone is piping in to us, use stdin as input.  if not, invoke adb logcat
 if os.isatty(sys.stdin.fileno()):
-    timeOutputted = True   # Change it to False to disable time format
     formatStr = "brief"
     if timeOutputted:
         formatStr = "time"
-    input = os.popen("adb %s logcat -v %s %s" % (adb_args, formatStr, logcat_args))
-    #print "adb %s logcat -v %s %s" % (adb_args, formatStr, logcat_args) # for debug
+    adb_cmd = "adb %s logcat -v %s %s" % (adb_args, formatStr, logcat_args)
+    input = os.popen(adb_cmd)
+    #print "Cmd: " + adb_cmd # for debug
 else:
     input = sys.stdin
 
