@@ -26,18 +26,19 @@
 # 3. Support logcat -v time
 #
 # Usage:
-#     coloredlogcat [-d|-e] [-t] [<log filters>]
-#     adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat
+#     coloredlogcat [-d|-e] [-t] [-s <skipped tags>] [<log filters>]
+#     adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>] 
 #
 # Options:
 #      -d  Means "adb -d"
 #      -e  Means "adb -e"
 #      -t  Means "adb -v time"
+#      -s <skipped tags, seperated by ':'>
 #
 # Examples:
 # $ coloredlogcat
 # $ coloredlogcat -d -t
-# $ coloredlogcat -e ActivityManager:* *:E
+# $ coloredlogcat -e ActivityManager:* *:E  -s dalvikvm:SurfaceFlinger
 # $ coloredlogcat ActivityManager:* *:E -t
 # $ adb -d logcat -v time | coloredlogcat
 # $ adb logcat ActivityManager:* *:S | coloredlogcat
@@ -127,18 +128,19 @@ retagTime = re.compile("^([\-:\. 0-9]+) ([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
 timeOutputted = False
 
 def showUsage():
-    print "Usage: coloredlogcat [-d|-e] [-t] [<log filters>]"
-    print "       adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat"
+    print "Usage: coloredlogcat [-d|-e] [-t][-s <skipped tags>] [<log filters>]"
+    print "       adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>] "
     sys.exit(1)
 
 try:
-    opts,  filtersArgs = getopt.gnu_getopt(sys.argv[1:],  "det",)
+    opts,  filtersArgs = getopt.gnu_getopt(sys.argv[1:],  "dets:",)
 except getopt.GetoptError, err:
     print "Error: " + str(err)
     showUsage()
 
 adb_group = 0
 adb_args = ""
+skipped_tags = set()
 
 for optName,  optArg in opts:
     if optName == "-t":
@@ -149,6 +151,8 @@ for optName,  optArg in opts:
     elif optName == "-e":
         adb_args = "-e"
         adb_group += 1
+    elif optName == "-s":
+        skipped_tags = set(optArg.split(':'));
     else:
         assert False,  "Unhandled option: " + optName
 
@@ -193,6 +197,10 @@ while True:
         else:
             tagtype, tag, owner, message = match.groups()
 
+        tag = tag.strip();
+        if tag in skipped_tags:
+            continue; # stip the tag
+
         linebuf = StringIO.StringIO()
 
         # line number
@@ -234,15 +242,4 @@ while True:
 
     print line
     if len(line) == 0: break
-
-
-
-
-
-
-
-
-
-
-
 
