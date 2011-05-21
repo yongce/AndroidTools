@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# Print AndroidManifest.xml in APK
+# Usage: amprint <AndroidManifest.xml or APK file>
+
+if [ $# -ne 1 ]; then
+    echo "Usage: amprint <AndroidManifest.xml or APK file>"
+    exit
+fi
+
+CUR_DIR=`dirname "$0"`
+
+file "$1" | grep -i zip 1>/dev/null 2>/dev/null
+
+if [ $? -ne 0 ]; then
+    java -jar $CUR_DIR/lib/AXMLPrinter2.jar "$1"
+else
+    tempFolder=`mktemp -d temp_XXXXX`
+    unzip -qo "$1" AndroidManifest.xml -d $tempFolder
+    java -jar $CUR_DIR/lib/AXMLPrinter2.jar $tempFolder/AndroidManifest.xml
+    rm -rf $tempFolder
+fi
+

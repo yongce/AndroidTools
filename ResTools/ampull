@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Pull AndroidManifest.xml from APK
+# Usage: ampull <APK file> [<target dir>]
+
+if [ $# -eq 1 ]; then
+    unzip -qo $1 AndroidManifest.xml
+elif [ $# -eq 2 ]; then
+    unzip -qo $1 AndroidManifest.xml -d $2
+else
+    echo "Usage: ampull <APK file> [<target dir>]"
+fi
+
