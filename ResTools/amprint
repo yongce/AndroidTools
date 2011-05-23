@@ -8,7 +8,12 @@ if [ $# -ne 1 ]; then
     exit
 fi
 
-CUR_DIR=`dirname "$0"`
+REAL_PATH=`readlink -e "$0"`
+if [ $? -ne 0 ]; then
+    REAL_PATH="$0"
+fi
+
+CUR_DIR=`dirname "$REAL_PATH"`
 
 file "$1" | grep -i zip 1>/dev/null 2>/dev/null
 
