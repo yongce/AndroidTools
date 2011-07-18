@@ -26,14 +26,15 @@
 # 3. Support logcat -v time
 #
 # Usage:
-#     coloredlogcat [-d|-e] [-t] [-s <skipped tags>] [<log filters>]
-#     adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>] 
+#     coloredlogcat [-d|-e] [-t] [-s <skipped tags>] [--sub <sub_tags>] [<log filters>]
+#     adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>] [--sub <sub_tags>]
 #
 # Options:
 #      -d  Means "adb -d"
 #      -e  Means "adb -e"
 #      -t  Means "adb -v time"
 #      -s <skipped tags, seperated by ':'>
+#   --sub <sub tags, separated by ':'>
 #
 # Examples:
 # $ coloredlogcat
@@ -42,7 +43,7 @@
 # $ coloredlogcat ActivityManager:* *:E -t
 # $ adb -d logcat -v time | coloredlogcat
 # $ adb logcat ActivityManager:* *:S | coloredlogcat
-#
+# $ coloredlogcat --sub BatteryGraph:BatteryInfoHelper
 
 import os, sys, re, StringIO
 import fcntl, termios, struct
@@ -123,17 +124,18 @@ TAGTYPES = {
 # regular expression for logs
 retagDefault = re.compile("^([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
 retagTime = re.compile("^([\-:\. 0-9]+) ([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
+reSubTag = re.compile("^\[(.*)\] .*$");
 
 # indicate whether the time is outputted
 timeOutputted = False
 
 def showUsage():
-    print "Usage: coloredlogcat [-d|-e] [-t][-s <skipped tags>] [<log filters>]"
-    print "       adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>] "
+    print "Usage: coloredlogcat [-d|-e] [-t][-s <skipped tags>] [--sub <sub_tags>] [<log filters>]"
+    print "       adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>]  [--sub <sub_tags>]"
     sys.exit(1)
 
 try:
-    opts,  filtersArgs = getopt.gnu_getopt(sys.argv[1:],  "dets:",)
+    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "dets:", ["sub="])
 except getopt.GetoptError, err:
     print "Error: " + str(err)
     showUsage()
@@ -141,6 +143,7 @@ except getopt.GetoptError, err:
 adb_group = 0
 adb_args = ""
 skipped_tags = set()
+sub_tags = set()
 
 for optName,  optArg in opts:
     if optName == "-t":
@@ -152,7 +155,9 @@ for optName,  optArg in opts:
         adb_args = "-e"
         adb_group += 1
     elif optName == "-s":
-        skipped_tags = set(optArg.split(':'));
+        skipped_tags = set(optArg.split(':'))
+    elif optName == "--sub":
+        sub_tags = set(optArg.split(':'))
     else:
         assert False,  "Unhandled option: " + optName
 
@@ -199,7 +204,15 @@ while True:
 
         tag = tag.strip();
         if tag in skipped_tags:
-            continue; # stip the tag
+            continue; # skip the tag
+
+        if len(sub_tags) > 0:
+            match2 = reSubTag.match(message)
+            if match2 is None:
+                continue; # skip this message
+            subtag, = match2.groups()
+            if not subtag in sub_tags:
+                continue; # skip this message
 
         linebuf = StringIO.StringIO()
 
