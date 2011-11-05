@@ -124,7 +124,7 @@ TAGTYPES = {
 # regular expression for logs
 retagDefault = re.compile("^([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
 retagTime = re.compile("^([\-:\. 0-9]+) ([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
-reSubTag = re.compile("^\[(.*)\] .*$");
+reSubTag = re.compile("^\[([^\]]*)\] .*$");
 
 # indicate whether the time is outputted
 timeOutputted = False
