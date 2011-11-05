@@ -26,8 +26,8 @@
 # 3. Support logcat -v time
 #
 # Usage:
-#     coloredlogcat [-d|-e] [-t] [-s <skipped tags>] [--sub <sub_tags>] [<log filters>]
-#     adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>] [--sub <sub_tags>]
+#     coloredlogcat [-d|-e] [-t] [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]
+#     adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids>
 #
 # Options:
 #      -d  Means "adb -d"
@@ -35,6 +35,8 @@
 #      -t  Means "adb -v time"
 #      -s <skipped tags, seperated by ':'>
 #   --sub <sub tags, separated by ':'>
+#      -p <pids, separated by ':'>
+#    --tp <tags for pids, separated by ':'>
 #
 # Examples:
 # $ coloredlogcat
@@ -44,6 +46,7 @@
 # $ adb -d logcat -v time | coloredlogcat
 # $ adb logcat ActivityManager:* *:S | coloredlogcat
 # $ coloredlogcat --sub BatteryGraph:BatteryInfoHelper
+# $ coloredlogcat -p 1167:136 --tp ActivityManager:ImageShaderCpp
 
 import os, sys, re, StringIO
 import fcntl, termios, struct
@@ -130,12 +133,12 @@ reSubTag = re.compile("^\[([^\]]*)\] .*$");
 timeOutputted = False
 
 def showUsage():
-    print "Usage: coloredlogcat [-d|-e] [-t][-s <skipped tags>] [--sub <sub_tags>] [<log filters>]"
-    print "       adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>]  [--sub <sub_tags>]"
+    print "Usage: coloredlogcat [-d|-e] [-t][-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]"
+    print "       adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>]  [--sub <sub_tags>] -p <pids> --tp <tags for pids>"
     sys.exit(1)
 
 try:
-    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "dets:", ["sub="])
+    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "dets:p:", ["sub=","tp="])
 except getopt.GetoptError, err:
     print "Error: " + str(err)
     showUsage()
@@ -144,6 +147,8 @@ adb_group = 0
 adb_args = ""
 skipped_tags = set()
 sub_tags = set()
+filter_pids = set()
+filter_pid_tags = set()
 
 for optName,  optArg in opts:
     if optName == "-t":
@@ -158,6 +163,10 @@ for optName,  optArg in opts:
         skipped_tags = set(optArg.split(':'))
     elif optName == "--sub":
         sub_tags = set(optArg.split(':'))
+    elif optName == "-p":
+        filter_pids = set(optArg.split(':'))
+    elif optName == "--tp":
+        filter_pid_tags = set(optArg.split(':'))
     else:
         assert False,  "Unhandled option: " + optName
 
@@ -213,6 +222,13 @@ while True:
             subtag, = match2.groups()
             if not subtag in sub_tags:
                 continue; # skip this message
+
+        # Get pid from tag
+        if tag in filter_pid_tags:
+            filter_pids.add(owner)
+
+        if not owner in filter_pids:
+            continue; # skip the process
 
         linebuf = StringIO.StringIO()
 
