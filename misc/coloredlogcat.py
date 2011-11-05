@@ -227,7 +227,7 @@ while True:
         if tag in filter_pid_tags:
             filter_pids.add(owner)
 
-        if not owner in filter_pids:
+        if len(filter_pids) > 0 and not owner in filter_pids:
             continue; # skip the process
 
         linebuf = StringIO.StringIO()
