@@ -1,9 +1,17 @@
 #!/bin/sh
 
-PRG=`readlink -e "$0"`
-if [ $? -ne 0 ]; then
-    PRG="$0"
-fi
+# copy from $Tomcat/bin/startup.sh
+# resolve links - $0 may be a softlink
+PRG="$0"
+while [ -h "$PRG" ] ; do
+  ls=`ls -ld "$PRG"`
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    PRG="$link"
+  else
+    PRG=`dirname "$PRG"`/"$link"
+  fi
+done
 PRGDIR=`dirname "$PRG"`
 #
 
