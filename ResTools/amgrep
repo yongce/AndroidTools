@@ -20,6 +20,6 @@ for i in $filelist; do
     fi
 
     echo ">>> Processing $i..."
-    amprint $i | grep --color $1
+    amprint $i | grep -C 1 --color $1
 done
 
