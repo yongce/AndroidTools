@@ -26,7 +26,7 @@
 # 3. Support logcat -v time
 #
 # Usage:
-#     coloredlogcat [-d|-e] [-t] [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]
+#     coloredlogcat [-d|-e] [-t] [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>] [--ni]
 #     adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids>
 #
 # Options:
@@ -37,6 +37,7 @@
 #   --sub <sub tags, separated by ':'>
 #      -p <pids, separated by ':'>
 #    --tp <tags for pids, separated by ':'>
+#    --ni Don't indent the messages when wrap lines
 #
 # Examples:
 # $ coloredlogcat
@@ -131,6 +132,8 @@ reSubTag = re.compile("^\[([^\]]*)\] .*$");
 
 # indicate whether the time is outputted
 timeOutputted = False
+# indicate whether indent the output
+indentOutput = True
 
 def showUsage():
     print "Usage: coloredlogcat [-d|-e] [-t][-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]"
@@ -138,7 +141,7 @@ def showUsage():
     sys.exit(1)
 
 try:
-    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "dets:p:", ["sub=","tp="])
+    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "dets:p:", ["sub=","tp=","ni"])
 except getopt.GetoptError, err:
     print "Error: " + str(err)
     showUsage()
@@ -167,6 +170,8 @@ for optName,  optArg in opts:
         filter_pids = set(optArg.split(':'))
     elif optName == "--tp":
         filter_pid_tags = set(optArg.split(':'))
+    elif optName == "--ni":
+        indentOutput = False
     else:
         assert False,  "Unhandled option: " + optName
 
@@ -256,10 +261,11 @@ while True:
             linebuf.write(str("[" + time + "] ").ljust(TIME_WIDTH))
 
         # insert line wrapping as needed
-        headerSize = HEADER_SIZE
-        if timeOutputted:
-            headerSize += TIME_WIDTH
-        message = indent_wrap(message, headerSize, WIDTH)
+        if indentOutput:
+            headerSize = HEADER_SIZE
+            if timeOutputted:
+                headerSize += TIME_WIDTH
+            message = indent_wrap(message, headerSize, WIDTH)
 
         # format tag message using rules
         for matcher in RULES:
