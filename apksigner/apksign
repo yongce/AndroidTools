@@ -1,0 +1,25 @@
+#!/bin/sh
+
+# Sign APK using JDK tool "jarsigner" and Android test key
+
+if [ $# -ne 1 ]; then
+    echo "Usage: apksign <APK filename>"
+    exit
+fi
+
+REAL_PATH=`readlink -e "$0"`
+if [ $? -ne 0 ]; then
+    REAL_PATH="$0"
+fi
+
+CUR_DIR=`dirname "$REAL_PATH"`
+KEYSTORE=$CUR_DIR/apk.keystore
+
+echo "Signing \"$1\"..."
+
+# Remove the old signature first
+zip -d -q $1 "META-INF*"
+# Sign the unsigned APK
+jarsigner -keystore $KEYSTORE -storepass android $1 android.testkey
+
+echo Done

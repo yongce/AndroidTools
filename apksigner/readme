@@ -1,0 +1,5 @@
+keystore password: android
+key alias password: android
+
+Notes:
+1. The key "android.testkey" was imported from Android source (build/target/product/security, testkey.pk8 & testkey.x509.pem)
