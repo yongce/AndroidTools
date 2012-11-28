@@ -18,6 +18,7 @@ rm -vrf "$TEMP_DIR_TEMPLATE"_*
 # Second, decompile the apk
 tempFolder=`mktemp -d "$TEMP_DIR_TEMPLATE"_XXXXX `
 unzip -qo "$1" classes.dex -d $tempFolder
-dex2jar $tempFolder/classes.dex
-jd-gui $tempFolder/classes_dex2jar.jar 2>/dev/null &
+# Note: dex2jar should be linked to "dex2jar/d2j-dex2jar.sh"
+dex2jar -f -o $tempFolder/classes-dex2jar.jar $tempFolder/classes.dex
+jd-gui $tempFolder/classes-dex2jar.jar 2>/dev/null &
 
