@@ -17,8 +17,8 @@ KEYSTORE=$CUR_DIR/apk.keystore
 
 echo "Signing \"$1\"..."
 
-# Remove the old signature first
-zip -d -q $1 "META-INF*"
+# Remove the old signature first (ignore standard output)
+zip -d -q $1 "META-INF*" 1>/dev/null
 # Sign the unsigned APK
 jarsigner -keystore $KEYSTORE -storepass android $1 android.testkey
 
