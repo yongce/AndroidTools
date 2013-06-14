@@ -26,24 +26,24 @@
 # 3. Support logcat -v time
 #
 # Usage:
-#     coloredlogcat [-d|-e] [-t] [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>] [--ni]
+#     coloredlogcat [-d|-e] [--nt] [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>] [-i]
 #     adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids>
 #
 # Options:
 #      -d  Means "adb -d"
 #      -e  Means "adb -e"
-#      -t  Means "adb -v time"
-#      -s <skipped tags, seperated by ':'>
-#   --sub <sub tags, separated by ':'>
-#      -p <pids, separated by ':'>
-#    --tp <tags for pids, separated by ':'>
-#    --ni Don't indent the messages when wrap lines
+#    --nt  Don't use the format "adb -v time"
+#      -s  <skipped tags, seperated by ':'>
+#   --sub  <sub tags, separated by ':'>
+#      -p  <pids, separated by ':'>
+#    --tp  <tags for pids, separated by ':'>
+#      -i  Indent the messages when wrap lines
 #
 # Examples:
 # $ coloredlogcat
-# $ coloredlogcat -d -t
+# $ coloredlogcat -d
 # $ coloredlogcat -e ActivityManager:* *:E  -s dalvikvm:SurfaceFlinger
-# $ coloredlogcat ActivityManager:* *:E -t
+# $ coloredlogcat ActivityManager:* *:E --nt
 # $ adb -d logcat -v time | coloredlogcat
 # $ adb logcat ActivityManager:* *:S | coloredlogcat
 # $ coloredlogcat --sub BatteryGraph:BatteryInfoHelper
@@ -131,12 +131,12 @@ retagTime = re.compile("^([\-:\. 0-9]+) ([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
 reSubTag = re.compile("^\[([^\]]*)\] .*$");
 
 # indicate whether the time is outputted
-timeOutputted = False
+timeOutputted = True
 # indicate whether indent the output
-indentOutput = True
+indentOutput = False
 
 def showUsage():
-    print "Usage: coloredlogcat [-d|-e] [-t][-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]"
+    print "Usage: coloredlogcat [-d|-e] [--nt][-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]"
     print "       adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>]  [--sub <sub_tags>] -p <pids> --tp <tags for pids>"
     sys.exit(1)
 
@@ -154,8 +154,8 @@ filter_pids = set()
 filter_pid_tags = set()
 
 for optName,  optArg in opts:
-    if optName == "-t":
-        timeOutputted = True
+    if optName == "--nt":
+        timeOutputted = False
     elif optName == "-d":
         adb_args = "-d"
         adb_group += 1
@@ -170,8 +170,8 @@ for optName,  optArg in opts:
         filter_pids = set(optArg.split(':'))
     elif optName == "--tp":
         filter_pid_tags = set(optArg.split(':'))
-    elif optName == "--ni":
-        indentOutput = False
+    elif optName == "-i":
+        indentOutput = True
     else:
         assert False,  "Unhandled option: " + optName
 
