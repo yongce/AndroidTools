@@ -2,9 +2,20 @@
 
 # Sign APK using JDK tool "jarsigner" and Android test key
 
-if [ $# -ne 1 ]; then
-    echo "Usage: apksign <APK filename>"
+if [ $# -lt 1 ]; then
+    echo "Usage: apksign <APK filename> [<key alias>]"
+    echo "Supported key aliases: test, platform"
     exit
+fi
+
+KEY_ALIAS=android.testkey
+if [ $# -gt 1 ]; then
+    if [ $2 = platform ]; then
+        KEY_ALIAS=android.platformkey
+    elif [ $2 != test ]; then
+        echo "Unknown key alias: $1"
+        exit
+    fi
 fi
 
 REAL_PATH=`readlink -e "$0"`
@@ -15,11 +26,11 @@ fi
 CUR_DIR=`dirname "$REAL_PATH"`
 KEYSTORE=$CUR_DIR/apk.keystore
 
-echo "Signing \"$1\"..."
+echo "Signing \"$1\" with $KEY_ALIAS key..."
 
 # Remove the old signature first (ignore standard output)
 zip -d -q $1 "META-INF*" 1>/dev/null
 # Sign the unsigned APK
-jarsigner -keystore $KEYSTORE -storepass android $1 android.testkey
+jarsigner -keystore $KEYSTORE -storepass android $1 $KEY_ALIAS
 
 echo Done
