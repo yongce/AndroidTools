@@ -123,6 +123,8 @@ TAGTYPES = {
     "I": "%s%s%s " % (format(fg=BLACK, bg=GREEN), "I".center(TAGTYPE_WIDTH), format(reset=True)),
     "W": "%s%s%s " % (format(fg=BLACK, bg=YELLOW), "W".center(TAGTYPE_WIDTH), format(reset=True)),
     "E": "%s%s%s " % (format(fg=BLACK, bg=RED), "E".center(TAGTYPE_WIDTH), format(reset=True)),
+    "F": "%s%s%s " % (format(fg=BLACK, bg=RED), "F".center(TAGTYPE_WIDTH), format(reset=True)),
+    "?": "%s%s%s " % (format(fg=BLACK, bg=RED), "?".center(TAGTYPE_WIDTH), format(reset=True)),
 }
 
 # regular expression for logs
@@ -190,6 +192,7 @@ if os.isatty(sys.stdin.fileno()):
     input = os.popen(adb_cmd)
     #print "Cmd: " + adb_cmd # for debug
 else:
+    timeOutputted = False
     input = sys.stdin
 
 linenumber = 1
@@ -253,7 +256,7 @@ while True:
         linebuf.write("%s%s %s" % (format(fg=color, dim=False), tag, format(reset=True)))
 
         # write out tagtype colored edge
-        if not tagtype in TAGTYPES: break
+        if not tagtype in TAGTYPES: tagtype = "?"
         linebuf.write(TAGTYPES[tagtype])
 
         # time
@@ -277,4 +280,6 @@ while True:
 
     print line
     if len(line) == 0: break
+
+print "clc had exited!!!"
 
