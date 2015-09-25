@@ -232,6 +232,7 @@ while True:
                 continue; # skip this message
 
         # Get pid from tag
+        owner = owner.strip()
         if tag in filter_pid_tags:
             filter_pids.add(owner)
 
