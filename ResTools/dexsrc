@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# Decompile a DEX file and use jd-gui to view the Java source files
+
+if [ $# -ne 1 ]; then
+    echo "Usage: dexsrc <DEX filename>"
+    exit
+fi
+
+echo "Decompiling \"$1\"..."
+
+TEMP_DIR_TEMPLATE="/tmp/dexsrc_tmp"
+
+# First, clean the temp files generated in last step
+rm -vrf "$TEMP_DIR_TEMPLATE"_*
+
+# Second, decompile the DEX
+tempFolder=`mktemp -d "$TEMP_DIR_TEMPLATE"_XXXXX `
+# Note: dex2jar should be linked to "dex2jar/d2j-dex2jar.sh"
+dex2jar -f -o $tempFolder/classes-dex2jar.jar $1
+jd-gui $tempFolder/classes-dex2jar.jar 2>/dev/null &
+

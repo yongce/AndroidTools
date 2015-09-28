@@ -1,7 +1,6 @@
 #!/bin/sh
 
 # Decompile an apk and use jd-gui to view the Java source files
-# Usage: amprint <AndroidManifest.xml or APK file>
 
 if [ $# -ne 1 ]; then
     echo "Usage: apksrc <APK filename>"
