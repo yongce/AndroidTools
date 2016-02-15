@@ -26,7 +26,7 @@
 # 3. Support logcat -v time
 #
 # Usage:
-#     coloredlogcat [-d|-e] [--nt] [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>] [-i]
+#     coloredlogcat [-d|-e|-t <specific device>] [--nt] [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>] [-i]
 #     adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids>
 #
 # Options:
@@ -38,6 +38,7 @@
 #      -p  <pids, separated by ':'>
 #    --tp  <tags for pids, separated by ':'>
 #      -i  Indent the messages when wrap lines
+#      -t  <specific device>
 #
 # Examples:
 # $ coloredlogcat
@@ -138,12 +139,12 @@ timeOutputted = True
 indentOutput = False
 
 def showUsage():
-    print "Usage: coloredlogcat [-d|-e] [--nt][-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]"
+    print "Usage: coloredlogcat [-d|-e|-t <specific device>] [--nt][-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]"
     print "       adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>]  [--sub <sub_tags>] -p <pids> --tp <tags for pids>"
     sys.exit(1)
 
 try:
-    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "dets:p:", ["sub=","tp=","ni"])
+    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "deis:p:t:", ["sub=","tp=","nt"])
 except getopt.GetoptError, err:
     print "Error: " + str(err)
     showUsage()
@@ -163,6 +164,9 @@ for optName,  optArg in opts:
         adb_group += 1
     elif optName == "-e":
         adb_args = "-e"
+        adb_group += 1
+    elif optName == "-t":
+        adb_args = "-s " + optArg
         adb_group += 1
     elif optName == "-s":
         skipped_tags = set(optArg.split(':'))
