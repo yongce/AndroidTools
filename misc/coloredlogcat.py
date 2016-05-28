@@ -3,16 +3,16 @@
 '''
     Copyright 2009, The Android Open Source Project
 
-    Licensed under the Apache License, Version 2.0 (the "License"); 
-    you may not use this file except in compliance with the License. 
-    You may obtain a copy of the License at 
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0 
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    Unless required by applicable law or agreed to in writing, software 
-    distributed under the License is distributed on an "AS IS" BASIS, 
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-    See the License for the specific language governing permissions and 
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
     limitations under the License.
 '''
 
@@ -23,29 +23,25 @@
 # Modified by Yongce Tu <yongce.tu at gmail.com>
 # 1. Add line number
 # 2. Support logcat filter args
-# 3. Support logcat -v time
+# 3. Support logcat -v brief|time|threadtime
 #
 # Usage:
-#     coloredlogcat [-d|-e|-t <specific device>] [--nt] [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>] [-i]
-#     adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids>
+#     coloredlogcat [-s <specific device>] [-v brief|time|threadtime] [--st <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]
+#     adb [-d|-e|-s <specific device>] logcat [-v brief|time|threadtime] <log filters> | coloredlogcat [-v brief|time|threadtime] [--st <skipped tags>]  [--sub <sub_tags>] -p <pids> --tp <tags for pids>
 #
 # Options:
-#      -d  Means "adb -d"
-#      -e  Means "adb -e"
-#    --nt  Don't use the format "adb -v time"
-#      -s  <skipped tags, seperated by ':'>
+#    --st  <skipped tags, seperated by ':'>
 #   --sub  <sub tags, separated by ':'>
 #      -p  <pids, separated by ':'>
 #    --tp  <tags for pids, separated by ':'>
 #      -i  Indent the messages when wrap lines
-#      -t  <specific device>
+#      -s  <specific device>
+#      -v  same to adb logcat, only 'brief', 'time', 'threadtime' supported
 #
 # Examples:
 # $ coloredlogcat
-# $ coloredlogcat -d
-# $ coloredlogcat -e ActivityManager:* *:E  -s dalvikvm:SurfaceFlinger
-# $ coloredlogcat ActivityManager:* *:E --nt
-# $ adb -d logcat -v time | coloredlogcat
+# $ coloredlogcat ActivityManager:* *:E
+# $ adb -d logcat -v time | coloredlogcat -v time
 # $ adb logcat ActivityManager:* *:S | coloredlogcat
 # $ coloredlogcat --sub BatteryGraph:BatteryInfoHelper
 # $ coloredlogcat -p 1167:136 --tp ActivityManager:ImageShaderCpp
@@ -114,9 +110,10 @@ RULES = {
 NUMBER_WIDTH = 6
 TAGTYPE_WIDTH = 3
 TAG_WIDTH = 25
-PROCESS_WIDTH = 8 # 8 or -1
+PID_WIDTH = 7
+TID_WIDTH = 7
 TIME_WIDTH = 21
-HEADER_SIZE =  1 + NUMBER_WIDTH + TAGTYPE_WIDTH + 1 + TAG_WIDTH + 1 + PROCESS_WIDTH + 1
+HEADER_SIZE =  1 + NUMBER_WIDTH + TAGTYPE_WIDTH + 1 + TAG_WIDTH + 1 + PID_WIDTH + 1
 
 TAGTYPES = {
     "V": "%s%s%s " % (format(fg=WHITE, bg=BLACK), "V".center(TAGTYPE_WIDTH), format(reset=True)),
@@ -129,46 +126,40 @@ TAGTYPES = {
 }
 
 # regular expression for logs
-retagDefault = re.compile("^([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
+retagBrief = re.compile("^([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
 retagTime = re.compile("^([\-:\. 0-9]+) ([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
+retagThreadtime = re.compile("^([\-:\. 0-9]+)[ ]+([0-9]+)[ ]+([0-9]+) ([A-Z]) ([^:]+): (.*)$")
 reSubTag = re.compile("^\[([^\]]*)\] .*$");
 
-# indicate whether the time is outputted
-timeOutputted = True
 # indicate whether indent the output
 indentOutput = False
 
 def showUsage():
-    print "Usage: coloredlogcat [-d|-e|-t <specific device>] [--nt][-s <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]"
-    print "       adb [-d|-e] logcat [-v brief|time] <log filters> | coloredlogcat [-s <skipped tags>]  [--sub <sub_tags>] -p <pids> --tp <tags for pids>"
+    print "Usage: coloredlogcat [-s <specific device>] [-v brief|time|threadtime] [--st <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]"
+    print "       adb [-d|-e|-s <specific device>] logcat [-v brief|time|threadtime] <log filters> | coloredlogcat [-v brief|time|threadtime] [--st <skipped tags>]  [--sub <sub_tags>] -p <pids> --tp <tags for pids>"
     sys.exit(1)
 
 try:
-    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "deis:p:t:", ["sub=","tp=","nt"])
+    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "his:p:v:", ["sub=","tp=","st="])
 except getopt.GetoptError, err:
     print "Error: " + str(err)
     showUsage()
 
 adb_group = 0
 adb_args = ""
+outputFormat = "threadtime"
+timeOutputted = True
+tidOutputted = True
 skipped_tags = set()
 sub_tags = set()
 filter_pids = set()
 filter_pid_tags = set()
 
 for optName,  optArg in opts:
-    if optName == "--nt":
-        timeOutputted = False
-    elif optName == "-d":
-        adb_args = "-d"
-        adb_group += 1
-    elif optName == "-e":
-        adb_args = "-e"
-        adb_group += 1
-    elif optName == "-t":
+    if optName == "-s":
         adb_args = "-s " + optArg
         adb_group += 1
-    elif optName == "-s":
+    elif optName == "--st":
         skipped_tags = set(optArg.split(':'))
     elif optName == "--sub":
         sub_tags = set(optArg.split(':'))
@@ -178,25 +169,32 @@ for optName,  optArg in opts:
         filter_pid_tags = set(optArg.split(':'))
     elif optName == "-i":
         indentOutput = True
+    elif optName == "-v":
+        if optArg == "brief":
+            outputFormat = optArg
+            timeOutputted = False
+            tidOutputted = False
+        elif optArg == "time":
+            outputFormat = optArg
+            timeOutputted = True
+            tidOutputted = False
+        else:
+            outputFormat = "threadtime"
+            timeOutputted = True
+            tidOutputted = True
+    elif optName == "-h":
+        showUsage()
     else:
         assert False,  "Unhandled option: " + optName
-
-if adb_group > 1:
-    print "Error: Cannot specify \"-d\" and \"-e\" at the same time."
-    showUsage()
 
 logcat_args = ' '.join(filtersArgs)
 
 # if someone is piping in to us, use stdin as input.  if not, invoke adb logcat
 if os.isatty(sys.stdin.fileno()):
-    formatStr = "brief"
-    if timeOutputted:
-        formatStr = "time"
-    adb_cmd = "adb %s logcat -v %s %s" % (adb_args, formatStr, logcat_args)
+    adb_cmd = "adb %s logcat -v %s %s" % (adb_args, outputFormat, logcat_args)
     input = os.popen(adb_cmd)
     #print "Cmd: " + adb_cmd # for debug
 else:
-    timeOutputted = False
     input = sys.stdin
 
 linenumber = 1
@@ -207,21 +205,20 @@ while True:
     except KeyboardInterrupt:
         break
 
-    if (timeOutputted):
+    if outputFormat == "threadtime":
+        match = retagThreadtime.match(line)
+    elif outputFormat == "time":
         match = retagTime.match(line)
     else:
-        match = retagDefault.match(line)
-        if match is None:
-            # logs from pipe have time info
-            match = retagTime.match(line)
-            if not match is None:
-                timeOutputted = True
+        match = retagBrief.match(line)
 
     if not match is None:
-        if (timeOutputted):
-            time, tagtype, tag, owner, message = match.groups()
+        if outputFormat == "threadtime":
+            time, pid, tid, tagtype, tag, message = match.groups()
+        elif outputFormat == "time":
+            time, tagtype, tag, pid, message = match.groups()
         else:
-            tagtype, tag, owner, message = match.groups()
+            tagtype, tag, pid, message = match.groups()
 
         tag = tag.strip();
         if tag in skipped_tags:
@@ -236,11 +233,11 @@ while True:
                 continue; # skip this message
 
         # Get pid from tag
-        owner = owner.strip()
+        pid = pid.strip()
         if tag in filter_pid_tags:
-            filter_pids.add(owner)
+            filter_pids.add(pid)
 
-        if len(filter_pids) > 0 and not owner in filter_pids:
+        if len(filter_pids) > 0 and not pid in filter_pids:
             continue; # skip the process
 
         linebuf = StringIO.StringIO()
@@ -250,9 +247,12 @@ while True:
         linenumber += 1
 
         # center process info
-        if PROCESS_WIDTH > 0:
-            owner = owner.strip().center(PROCESS_WIDTH)
-            linebuf.write("%s%s%s " % (format(fg=BLACK, bg=BLACK, bright=True), owner, format(reset=True)))
+        pid = pid.strip().center(PID_WIDTH)
+        linebuf.write("%s%s%s " % (format(fg=BLACK, bg=BLACK, bright=True), pid, format(reset=True)))
+
+        if tidOutputted:
+            tid = tid.strip().center(TID_WIDTH)
+            linebuf.write("%s%s%s " % (format(fg=BLACK, bg=BLACK, bright=True), tid, format(reset=True)))
 
         # right-align tag title and allocate color if needed
         tag = tag.strip()
@@ -266,11 +266,14 @@ while True:
 
         # time
         if timeOutputted:
+            time = time.strip()
             linebuf.write(str("[" + time + "] ").ljust(TIME_WIDTH))
 
         # insert line wrapping as needed
         if indentOutput:
             headerSize = HEADER_SIZE
+            if tidOutputted:
+                headerSize += TID_WIDTH + 1
             if timeOutputted:
                 headerSize += TIME_WIDTH
             message = indent_wrap(message, headerSize, WIDTH)
@@ -287,4 +290,3 @@ while True:
     if len(line) == 0: break
 
 print "clc had exited!!!"
-
