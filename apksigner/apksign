@@ -8,6 +8,23 @@ if [ $# -lt 1 ]; then
     exit
 fi
 
+kernel_name=`uname -s`
+IS_MAC_OS=false
+if [ $kernel_name = "Darwin" ]; then
+    IS_MAC_OS=true
+fi
+
+if ! $IS_MAC_OS; then # for Linux only
+    alias greadlink="readlink"
+fi
+
+CMD_REAL_PATH=`greadlink -e "$0"`
+if [ $? -ne 0 ]; then
+    CMD_REAL_PATH="$0"
+fi
+
+CMD_DIR=`dirname "$CMD_REAL_PATH"`
+
 KEY_ALIAS=android.testkey
 if [ $# -gt 1 ]; then
     if [ $2 = platform ]; then
@@ -18,13 +35,7 @@ if [ $# -gt 1 ]; then
     fi
 fi
 
-REAL_PATH=`readlink -e "$0"`
-if [ $? -ne 0 ]; then
-    REAL_PATH="$0"
-fi
-
-CUR_DIR=`dirname "$REAL_PATH"`
-KEYSTORE=$CUR_DIR/apk.keystore
+KEYSTORE=$CMD_DIR/apk.keystore
 
 echo "Signing \"$1\" with $KEY_ALIAS key..."
 

@@ -8,21 +8,30 @@ if [ $# -ne 1 ]; then
     exit
 fi
 
-REAL_PATH=`readlink -e "$0"`
-if [ $? -ne 0 ]; then
-    REAL_PATH="$0"
+kernel_name=`uname -s`
+IS_MAC_OS=false
+if [ $kernel_name = "Darwin" ]; then
+    IS_MAC_OS=true
 fi
 
-CUR_DIR=`dirname "$REAL_PATH"`
+if ! $IS_MAC_OS; then # for Linux only
+    alias greadlink="readlink"
+fi
+
+CMD_REAL_PATH=`greadlink -e "$0"`
+if [ $? -ne 0 ]; then
+    CMD_REAL_PATH="$0"
+fi
+
+CMD_DIR=`dirname "$CMD_REAL_PATH"`
 
 file "$1" | grep -i zip 1>/dev/null 2>/dev/null
 
 if [ $? -ne 0 ]; then
-    java -jar $CUR_DIR/lib/AXMLPrinter2.jar "$1"
+    java -jar $CMD_DIR/lib/AXMLPrinter2.jar "$1"
 else
     tempFolder=`mktemp -d temp_XXXXX`
     unzip -qo "$1" AndroidManifest.xml -d $tempFolder
-    java -jar $CUR_DIR/lib/AXMLPrinter2.jar $tempFolder/AndroidManifest.xml
+    java -jar $CMD_DIR/lib/AXMLPrinter2.jar $tempFolder/AndroidManifest.xml
     rm -rf $tempFolder
 fi
-
