@@ -25,26 +25,6 @@
 # 2. Support logcat filter args
 # 3. Support logcat -v brief|time|threadtime
 #
-# Usage:
-#     coloredlogcat [-s <specific device>] [-v brief|time|threadtime] [--st <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]
-#     adb [-d|-e|-s <specific device>] logcat [-v brief|time|threadtime] <log filters> | coloredlogcat [-v brief|time|threadtime] [--st <skipped tags>]  [--sub <sub_tags>] -p <pids> --tp <tags for pids>
-#
-# Options:
-#    --st  <skipped tags, seperated by ':'>
-#   --sub  <sub tags, separated by ':'>
-#      -p  <pids, separated by ':'>
-#    --tp  <tags for pids, separated by ':'>
-#      -i  Indent the messages when wrap lines
-#      -s  <specific device>
-#      -v  same to adb logcat, only 'brief', 'time', 'threadtime' supported
-#
-# Examples:
-# $ coloredlogcat
-# $ coloredlogcat ActivityManager:* *:E
-# $ adb -d logcat -v time | coloredlogcat -v time
-# $ adb logcat ActivityManager:* *:S | coloredlogcat
-# $ coloredlogcat --sub BatteryGraph:BatteryInfoHelper
-# $ coloredlogcat -p 1167:136 --tp ActivityManager:ImageShaderCpp
 
 import os, sys, re, StringIO
 import fcntl, termios, struct
@@ -135,12 +115,29 @@ reSubTag = re.compile("^\[([^\]]*)\] .*$");
 indentOutput = False
 
 def showUsage():
-    print "Usage: coloredlogcat [-s <specific device>] [-v brief|time|threadtime] [--st <skipped tags>] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]"
-    print "       adb [-d|-e|-s <specific device>] logcat [-v brief|time|threadtime] <log filters> | coloredlogcat [-v brief|time|threadtime] [--st <skipped tags>]  [--sub <sub_tags>] -p <pids> --tp <tags for pids>"
+    print "Usage:"
+    print "    coloredlogcat [-s <specific device>] [-v brief|time|threadtime] [--st <skipped tags>] [--sp <skipped pids] [--sub <sub_tags>] -p <pids> --tp <tags for pids> [<log filters>]"
+    print "    adb [-d|-e|-s <specific device>] logcat [-v brief|time|threadtime] <log filters> | coloredlogcat [-v brief|time|threadtime] [--st <skipped tags>]  [--sub <sub_tags>] -p <pids> --tp <tags for pids>"
+    print "\nOptions:"
+    print "    --st  <skipped tags, seperated by ':'>"
+    print "    --sp  <skipped tags, seperated by ':'>"
+    print "   --sub  <sub tags, separated by ':'>"
+    print "      -p  <pids, separated by ':'>"
+    print "    --tp  <tags for pids, separated by ':'>"
+    print "      -i  Indent the messages when wrap lines"
+    print "      -s  <specific device>"
+    print "      -v  same to adb logcat, only 'brief', 'time', 'threadtime' supported"
+    print "\nExamples:"
+    print "    $ coloredlogcat"
+    print "    $ coloredlogcat ActivityManager:* *:E"
+    print "    $ adb -d logcat -v brief | coloredlogcat -v brief"
+    print "    $ adb logcat ActivityManager:* *:S | coloredlogcat"
+    print "    $ coloredlogcat -p 1167:136 --tp ActivityManager:ImageShaderCpp"
+    print "    $ coloredlogcat --sp 1234:5678"
     sys.exit(1)
 
 try:
-    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "his:p:v:", ["sub=","tp=","st="])
+    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "his:p:v:", ["sub=","tp=","st=","sp="])
 except getopt.GetoptError, err:
     print "Error: " + str(err)
     showUsage()
@@ -150,6 +147,7 @@ adb_args = ""
 outputFormat = "threadtime"
 timeOutputted = True
 tidOutputted = True
+skipped_pids = set()
 skipped_tags = set()
 sub_tags = set()
 filter_pids = set()
@@ -161,6 +159,8 @@ for optName,  optArg in opts:
         adb_group += 1
     elif optName == "--st":
         skipped_tags = set(optArg.split(':'))
+    elif optName == "--sp":
+        skipped_pids = set(optArg.split(':'))
     elif optName == "--sub":
         sub_tags = set(optArg.split(':'))
     elif optName == "-p":
@@ -238,6 +238,9 @@ while True:
             filter_pids.add(pid)
 
         if len(filter_pids) > 0 and not pid in filter_pids:
+            continue; # skip the process
+
+        if pid in skipped_pids:
             continue; # skip the process
 
         linebuf = StringIO.StringIO()
