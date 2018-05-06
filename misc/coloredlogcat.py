@@ -108,7 +108,7 @@ TAGTYPES = {
 # regular expression for logs
 retagBrief = re.compile("^([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
 retagTime = re.compile("^([\-:\. 0-9]+) ([A-Z])/([^\(]+)\(([^\)]+)\): (.*)$")
-retagThreadtime = re.compile("^([\-:\. 0-9]+)[ ]+([0-9]+)[ ]+([0-9]+) ([A-Z]) ([^:]+): (.*)$")
+retagThreadtime = re.compile("^([\-:\. 0-9]+)[ ]+([0-9]+)[ ]+([0-9]+) ([A-Z]) ([^ ]+)[ ]*: (.*)$")
 reSubTag = re.compile("^\[([^\]]*)\] .*$");
 
 # indicate whether indent the output
