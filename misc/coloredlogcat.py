@@ -289,7 +289,8 @@ while True:
         linebuf.write(message)
         line = linebuf.getvalue()
 
-    print line
+        print line
+
     if len(line) == 0: break
 
 print "clc had exited!!!"
