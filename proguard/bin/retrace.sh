@@ -7,12 +7,22 @@
 #       you'll have to add escaped quotes around them, e.g.
 #       "\"/My Directory/My File.txt\""
 
+kernel_name=`uname -s`
+IS_MAC_OS=false
+if [ $kernel_name = "Darwin" ]; then
+    IS_MAC_OS=true
+fi
+
+if ! $IS_MAC_OS; then # for Linux only
+    alias greadlink="readlink"
+fi
+
 # Account for possibly missing/basic readlink.
 # POSIX conformant (dash/ksh/zsh/bash).
-PROGUARD=`readlink -f "$0" 2>/dev/null`
+PROGUARD=`greadlink -f "$0" 2>/dev/null`
 if test "$PROGUARD" = ''
 then
-  PROGUARD=`readlink "$0" 2>/dev/null`
+  PROGUARD=`greadlink "$0" 2>/dev/null`
   if test "$PROGUARD" = ''
   then
     PROGUARD="$0"
