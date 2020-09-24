@@ -127,6 +127,8 @@ def showUsage():
     print "      -i  Indent the messages when wrap lines"
     print "      -s  <specific device>"
     print "      -v  same to adb logcat, only 'brief', 'time', 'threadtime' supported"
+    print "      -e  <regular expression>"
+    print " --regex  <regular expression>"
     print "\nExamples:"
     print "    $ coloredlogcat"
     print "    $ coloredlogcat ActivityManager:* *:E"
@@ -134,10 +136,11 @@ def showUsage():
     print "    $ adb logcat ActivityManager:* *:S | coloredlogcat"
     print "    $ coloredlogcat -p 1167:136 --tp ActivityManager:ImageShaderCpp"
     print "    $ coloredlogcat --sp 1234:5678"
+    print "    $ coloredlogcat -e Activity"
     sys.exit(1)
 
 try:
-    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "his:p:v:", ["sub=","tp=","st=","sp="])
+    opts, filtersArgs = getopt.gnu_getopt(sys.argv[1:], "his:p:v:e:", ["sub=","tp=","st=","sp=", "regex="])
 except getopt.GetoptError, err:
     print "Error: " + str(err)
     showUsage()
@@ -152,6 +155,7 @@ skipped_tags = set()
 sub_tags = set()
 filter_pids = set()
 filter_pid_tags = set()
+logcatRegex = None
 
 for optName,  optArg in opts:
     if optName == "-s":
@@ -182,12 +186,16 @@ for optName,  optArg in opts:
             outputFormat = "threadtime"
             timeOutputted = True
             tidOutputted = True
+    elif optName == "-e" or optName == "--regex":
+        logcatRegex = optArg
     elif optName == "-h":
         showUsage()
     else:
         assert False,  "Unhandled option: " + optName
 
 logcat_args = ' '.join(filtersArgs)
+if (not logcatRegex is None):
+    logcat_args = logcat_args + " -e " + logcatRegex
 
 # if someone is piping in to us, use stdin as input.  if not, invoke adb logcat
 if os.isatty(sys.stdin.fileno()):
@@ -250,12 +258,10 @@ while True:
         linenumber += 1
 
         # center process info
-        pid = pid.strip().center(PID_WIDTH)
-        linebuf.write("%s%s%s " % (format(fg=BLACK, bg=BLACK, bright=True), pid, format(reset=True)))
+        linebuf.write(pid.strip().center(PID_WIDTH) + " ")
 
         if tidOutputted:
-            tid = tid.strip().center(TID_WIDTH)
-            linebuf.write("%s%s%s " % (format(fg=BLACK, bg=BLACK, bright=True), tid, format(reset=True)))
+            linebuf.write(tid.strip().center(TID_WIDTH) + " ")
 
         # right-align tag title and allocate color if needed
         tag = tag.strip()
